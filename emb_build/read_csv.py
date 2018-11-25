@@ -1,8 +1,8 @@
 import pandas as pd
 
 print('loading datasets......')
-train_data = pd.read_csv('/data/yujun/datasets/daguanbei_data/train_set.csv')
-test_data = pd.read_csv('/data/yujun/datasets/daguanbei_data/test_set.csv')
+train_data = pd.read_csv(r'D:\localE\code\git\DaGuang\data_set\train_set.csv')
+test_data = pd.read_csv(r'D:\localE\code\git\DaGuang\data_set\test_set.csv')
 
 print('{} lines in train datasets'.format(len(train_data)))
 print('{} lines in test datasets'.format(len(test_data)))

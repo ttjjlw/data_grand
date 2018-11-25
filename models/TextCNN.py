@@ -22,7 +22,9 @@ class TextCNN(BasicModule):
         '''Embedding Layer'''
         # 使用预训练的词向量
         self.embedding = nn.Embedding(opt.vocab_size, opt.embedding_dim)
+        print('vocal_size:',opt.vocab_size)
         if vectors is not None:
+            vectors = torch.Tensor(vectors)
             self.embedding.weight.data.copy_(vectors)
 
         convs = [
@@ -55,7 +57,7 @@ class TextCNN(BasicModule):
     def forward(self, inputs):
         embeds = self.embedding(inputs)  # seq * batch * embed
         # 进入卷积层前需要将Tensor第二个维度变成emb_dim，作为卷积的通道数
-        conv_out = [conv(embeds.permute(1, 2, 0)) for conv in self.convs]
+        conv_out = [conv(embeds.permute(0, 2, 1)) for conv in self.convs]
         conv_out = torch.cat(conv_out, dim=1)
 
         flatten = conv_out.view(conv_out.size(0), -1)

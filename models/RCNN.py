@@ -27,6 +27,7 @@ class RCNN(BasicModule):
         #
         self.embedding = nn.Embedding(args.vocab_size, args.embedding_dim)
         if vectors is not None:
+            vectors=torch.Tensor(vectors)
             self.embedding.weight.data.copy_(vectors)
         self.lstm = nn.LSTM(
             input_size=args.embedding_dim,
@@ -56,8 +57,8 @@ class RCNN(BasicModule):
 
     def forward(self, text):
         embed = self.embedding(text)
-        out = self.lstm(embed)[0].permute(1, 2, 0)
-        out = torch.cat((out, embed.permute(1, 2, 0)), dim=1)
+        out = self.lstm(embed)[0].permute(0, 2, 1)
+        out = torch.cat((out, embed.permute(0, 2, 1)), dim=1)
         conv_out = kmax_pooling(self.conv(out), 2, self.kmax_k)
 
         flatten = conv_out.view(conv_out.size(0), -1)

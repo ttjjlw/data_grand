@@ -1,114 +1,65 @@
-# -*- coding: utf-8 -*-
-
-"""
-# @Author  : captain
-# @Time    : 2018/8/28 16:15
-# @Ide     : PyCharm
-"""
-
-from torchtext import data
-import pandas as pd
-from torchtext.vocab import Vectors
-from tqdm import tqdm
-from torch.nn import init
+# D:\localE\python
+# -*-coding:utf-8-*-
+# Author ycx
+# D:\localE\python
+# -*-coding:utf-8-*-
+# Author ycx
 import random
-import os
 import numpy as np
+import pickle
+import torch
+from sklearn.model_selection import train_test_split
+import pandas as pd
+import torch.utils.data as Data
+class Transform():
+    def pad_sequences(self,data_num,padding_token=0,padding_sentence_length=None):
+        max_sentence_length=padding_sentence_length if padding_sentence_length is not None else max([len(sentence) for sentence in data_num])
+        for sentence in data_num:
+            while len(sentence) > max_sentence_length:
+                sentence.pop()
+            else:
+                sentence.extend([padding_token] * (max_sentence_length - len(sentence)))
+        return np.array(data_num)
 
+    def rows0to0(self,embed_matrix):
+        embeddings = np.delete(embed_matrix, 0, axis=0)
+        zero = np.zeros(len(embed_matrix[0]), dtype=np.int32)
+        embeddings = np.row_stack((zero, embeddings))
+        return embeddings
+def shuffle(data_num):
+    for line in data_num:
+        random.shuffle(line)
+def load_data(args,sf=True):
+    T=Transform()
+    with open(args.embedding_path, 'rb') as f:
+        embed_matrix = pickle.load(f)
+    embed_matrix=T.rows0to0(embed_matrix)
+    # print(embed_matrix[0])
+    with open(args.train_path, 'rb') as f:
+        data_num = pickle.load(f)
+    if sf:
+        shuffle(data_num)
+    df=pd.read_csv(r'D:\localE\code\DaGuang\train_set_filter.csv')
+    label=df['class']-1
+    label=np.array(label)
+    padding_data_num=T.pad_sequences(data_num,padding_sentence_length=args.max_text_len)
+    print('切分训练数据、label和验证集数据、label......')
+    train_data,val_data,train_label,val_label=train_test_split(padding_data_num,label,test_size=args.split_rate,
+                                                                    random_state=1)
+    val_data=torch.from_numpy(val_data).long()
+    val_label=torch.from_numpy(val_label)
+    val_torch_data=Data.TensorDataset(val_data,val_label)
+    val_loader=Data.DataLoader(dataset=val_torch_data,batch_size=args.batch_size,shuffle=False)
 
-# 定义Dataset
-class GrandDataset(data.Dataset):
-    name = 'Grand Dataset'
-
-    @staticmethod
-    def sort_key(ex):
-        return len(ex.text)
-
-    def __init__(self, path, text_field, label_field, text_type='word', test=False, aug=False, **kwargs):
-        fields = [('text', text_field), ('label', label_field)]
-        examples = []
-        csv_data = pd.read_csv(path)
-        print('read data from {}'.format(path))
-
-        if text_type == 'word':
-            text_type = 'word_seg'
-
-        if test:
-            # 如果为测试集，则不加载label
-            for text in tqdm(csv_data[text_type]):
-                examples.append(data.Example.fromlist([text, None], fields))
-        else:
-            for text, label in tqdm(zip(csv_data[text_type], csv_data['class'])):
-                if aug:
-                    # do augmentation
-                    rate = random.random()
-                    if rate > 0.5:
-                        text = self.dropout(text)
-                    else:
-                        text = self.shuffle(text)
-                examples.append(data.Example.fromlist([text, label - 1], fields))
-        super(GrandDataset, self).__init__(examples, fields, **kwargs)
-
-    def shuffle(self, text):
-        text = np.random.permutation(text.strip().split())
-        return ' '.join(text)
-
-    def dropout(self, text, p=0.5):
-        # random delete some text
-        text = text.strip().split()
-        len_ = len(text)
-        indexs = np.random.choice(len_, int(len_ * p))
-        for i in indexs:
-            text[i] = ''
-        return ' '.join(text)
-
-
-def load_data(opt):
-    # 不设置fix_length
-    TEXT = data.Field(sequential=True, fix_length=opt.max_text_len)  # 词或者字符
-    LABEL = data.Field(sequential=False, use_vocab=False)
-
-    # load
-    # word/ or article/
-    train_path = opt.data_path + opt.text_type + '/train_set.csv'
-    val_path = opt.data_path + opt.text_type + '/val_set.csv'
-    test_path = opt.data_path + opt.text_type + '/test_set.csv'
-    train_path = 'D:/git/dataset/val_set.csv'
-    test_path = 'D:/git/dataset/val_set.csv'
-    val_path = 'D:/git/dataset/val_set.csv'
-
-    # aug for data augmentation
-    if opt.aug:
-        print('make augmentation datasets!')
-    train = GrandDataset(train_path, text_field=TEXT, label_field=LABEL, text_type=opt.text_type, test=False,
-                         aug=opt.aug)
-    val = GrandDataset(val_path, text_field=TEXT, label_field=LABEL, text_type=opt.text_type, test=False)
-    test = GrandDataset(test_path, text_field=TEXT, label_field=None, text_type=opt.text_type, test=True)
-
-    cache = '.vector_cache'
-    if not os.path.exists(cache):
-        os.mkdir(cache)
-    embedding_path = '{}/{}_{}.txt'.format(opt.embedding_path, opt.text_type, opt.embedding_dim)
-    vectors = Vectors(name=embedding_path, cache=cache)
-    print('load word2vec vectors from {}'.format(embedding_path))
-    vectors.unk_init = init.xavier_uniform_  # 没有命中的token的初始化方式
-
-    # 构建Vocab
-    print('building {} vocabulary......'.format(opt.text_type))
-    TEXT.build_vocab(train, val, test, min_freq=5, vectors=vectors)
-    # LABEL.build_vocab(train)
-
-    # 构建Iterator
-    # 在 test_iter, shuffle, sort, repeat一定要设置成 False, 要不然会被 torchtext 搞乱样本顺序
-    # 如果输入变长序列，sort_within_batch需要设置成true，使每个batch内数据按照sort_key降序进行排序
-    train_iter = data.BucketIterator(dataset=train, batch_size=opt.batch_size, shuffle=True, sort_within_batch=False,
-                                     repeat=False, device=opt.device)
-    # val_iter = data.BucketIterator(dataset=val, batch_size=opt.batch_size, sort_within_batch=False, repeat=False,
-    #                                device=opt.device)
-    # train_iter = data.Iterator(dataset=train, batch_size=opt.batch_size, train=True, repeat=False, device=opt.device)
-    val_iter = data.Iterator(dataset=val, batch_size=opt.batch_size, shuffle=False, sort=False, repeat=False,
-                             device=opt.device)
-    test_iter = data.Iterator(dataset=test, batch_size=opt.batch_size, shuffle=False, sort=False, repeat=False,
-                              device=opt.device)
-
-    return train_iter, val_iter, test_iter, len(TEXT.vocab), TEXT.vocab.vectors
+    train_data=torch.from_numpy(train_data).long()
+    train_label=torch.from_numpy(train_label)
+    train_torch_data=Data.TensorDataset(train_data,train_label)
+    train_loader=Data.DataLoader(dataset=train_torch_data,batch_size=args.batch_size
+                                 ,shuffle=True)
+    with open(args.test_path, 'rb') as f:
+        test_num = pickle.load(f)
+    test_num=T.pad_sequences(data_num=test_num,padding_sentence_length=args.max_text_len)
+    test_num=torch.from_numpy(test_num).long()
+    torch_test=Data.TensorDataset(test_num)
+    test_loader=Data.DataLoader(dataset=torch_test,batch_size=args.batch_size,shuffle=False)
+    return train_loader,val_loader,test_loader,embed_matrix,len(embed_matrix),len(embed_matrix[0])

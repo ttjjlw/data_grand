@@ -12,16 +12,18 @@ from .BasicModule import BasicModule
 
 
 class bilstm_conv(BasicModule):
-    def __init__(self, args, vectors):
+    def __init__(self, args, vectors=None):
         self.args = args
         super(bilstm_conv, self).__init__()
         self.hidden_dim = args.hidden_dim
         self.batch_size = args.batch_size
-        self.use_gpu = args.use_gpu
+        # self.use_gpu = args.use_gpu
         self.lstm_layers = args.lstm_layers
 
         self.embedding = nn.Embedding(args.vocab_size, args.embedding_dim)
-        self.embedding.weight.data.copy_(vectors)
+        if vectors is not None:
+            vectors=torch.Tensor(vectors)
+            self.embedding.weight.data.copy_(vectors)
 
         self.bidirectional = True
         if self.lstm_layers > 1:
@@ -31,15 +33,15 @@ class bilstm_conv(BasicModule):
         else:
             self.bilstm = nn.LSTM(args.embedding_dim, self.hidden_dim // 2, num_layers=self.lstm_layers,
                                   bidirectional=True)
-        self.conv1 = nn.Conv1d(self.hidden_dim, 64, kernel_size=3)
+        self.conv1 = nn.Conv1d(self.hidden_dim, 64, kernel_size=3) #filter_nums=64
         self.fc = nn.Linear(64 * 2, args.label_size)
 
     def forward(self, sentence):
-        embed = self.embedding(sentence)  # [seq_len, bs, emb_dim]
+        embed = self.embedding(sentence)  # #(batch,seq,hid_dim)
 
-        lstm_out, _ = self.bilstm(embed)  # [seq_len, bs, hid_dim]
-        x = F.relu(self.conv1(lstm_out.permute(1, 2, 0)))
-        avg_pool = torch.mean(x, dim=2)
+        lstm_out, _ = self.bilstm(embed)  # #(batch,seq,hid_dim)
+        x = F.relu(self.conv1(lstm_out.permute(0, 2, 1)))
+        avg_pool = torch.mean(x, dim=2) #(batch,filter_nums)
         max_pool, _ = torch.max(x, dim=2)
         feat = torch.cat((avg_pool, max_pool), dim=1)
         y = self.fc(feat)

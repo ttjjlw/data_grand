@@ -59,6 +59,7 @@ class InCNN(BasicModule):
         self.opt = config
         self.embedding = nn.Embedding(config.vocab_size, config.embedding_dim)
         if vectors is not None:
+            vectors=t.from_numpy(vectors)
             self.embedding.weight.data.copy_(vectors)
 
         self.conv = nn.Sequential(
@@ -76,7 +77,7 @@ class InCNN(BasicModule):
 
     def forward(self, text):
         embed = self.embedding(text)  # seq*batch*emb
-        out = self.conv(embed.permute(1, 2, 0))  # batch*emb*seq
+        out = self.conv(embed.permute(0, 2, 1))  # batch*emb*seq
 
         flatten = out.view(out.size(0), -1)
         logits = self.fc(flatten)

@@ -19,6 +19,7 @@ class bigru_attention(BasicModule):
 
         self.embedding = nn.Embedding(args.vocab_size, args.embedding_dim)
         if vectors is not None:
+            vectors = torch.Tensor(vectors)
             self.embedding.weight.data.copy_(vectors)
         
         self.bigru = nn.GRU(args.embedding_dim, self.hidden_dim // 2, num_layers=self.gru_layers, bidirectional=True)
@@ -30,13 +31,13 @@ class bigru_attention(BasicModule):
         nn.init.uniform_(self.weight_proj, -0.1, 0.1)
 
     def forward(self, sentence):
-        embeds = self.embedding(sentence) # [seq_len, bs, emb_dim]
-        gru_out, _ = self.bigru(embeds) # [seq_len, bs, hid_dim]
-        x = gru_out.permute(1, 0, 2)
-        u = torch.tanh(torch.matmul(x, self.weight_W))
+        embeds = self.embedding(sentence) # [bs, seq_len, emb_dim]
+        gru_out, _ = self.bigru(embeds) # [bs, seq_len, hid_dim]
+        # x = gru_out.permute(1, 2, 0) #[seq_len,hid_dim,bs]
+        u = torch.tanh(torch.matmul(gru_out, self.weight_W)) #matmul 变成了mm
         att = torch.matmul(u, self.weight_proj)
         att_score = F.softmax(att, dim=1)
-        scored_x = x * att_score
+        scored_x = gru_out * att_score
         feat = torch.sum(scored_x, dim=1)
         y = self.fc(feat)
         return y

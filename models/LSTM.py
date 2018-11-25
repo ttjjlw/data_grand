@@ -23,7 +23,7 @@ def kmax_pooling(x, dim, k):
 
 
 class LSTM(BasicModule):
-    def __init__(self, config, vectors):
+    def __init__(self, config, vectors=None):
         super(LSTM, self).__init__()
         self.config = config
         self.kmax_pooling = config.kmax_pooling
@@ -31,7 +31,9 @@ class LSTM(BasicModule):
 
         # LSTM
         self.embedding = nn.Embedding(config.vocab_size, config.embedding_dim)
-        self.embedding.weight.data.copy_(vectors)
+        if vectors is not None:
+            vectors=torch.Tensor(vectors)
+            self.embedding.weight.data.copy_(vectors)
         self.bilstm = nn.LSTM(
             input_size=config.embedding_dim,
             hidden_size=config.hidden_dim,
@@ -52,8 +54,8 @@ class LSTM(BasicModule):
 
     # 对LSTM所有隐含层的输出做kmax pooling
     def forward(self, text):
-        embed = self.embedding(text)  # seq*batch*emb
-        out = self.bilstm(embed)[0].permute(1, 2, 0)  # batch * hidden * seq
+        embed = self.embedding(text)  # (batch,seq,embed_dim)
+        out = self.bilstm(embed)[0].permute(0, 2, 1)  # batch * hidden * seq
         pooling = kmax_pooling(out, 2, self.kmax_pooling)  # batch * hidden * kmax
 
         # word+article

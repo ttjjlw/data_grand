@@ -14,13 +14,15 @@ from config import DefaultConfig
 
 
 class AttLSTM(BasicModule):
-    def __init__(self, args, vectors):
+    def __init__(self, args, vectors=None):
         super(AttLSTM, self).__init__()
         self.args = args
 
         # LSTM
         self.embedding = nn.Embedding(args.vocab_size, args.embedding_dim)
-        self.embedding.weight.data.copy_(vectors)
+        if vectors is not None:
+            vectors=torch.Tensor(vectors)
+            self.embedding.weight.data.copy_(vectors)
         self.bilstm = nn.LSTM(
             input_size=args.embedding_dim,
             hidden_size=args.hidden_dim,
@@ -38,13 +40,16 @@ class AttLSTM(BasicModule):
         )
 
     def attention(self, rnn_out, state):
-        merged_state = torch.cat([s for s in state], 1)
-        merged_state = merged_state.unsqueeze(2)
+        merged_state = torch.cat([s for s in state], 1)#(seq_len,hidd_dim*2)
+        merged_state = merged_state.unsqueeze(2)   #(1500,512,1)
         # (batch, seq, hidden) * (batch, hidden, 1) = (batch, seq, 1)
-        weights = torch.bmm(rnn_out.permute(0, 2, 1), merged_state)
+        #rnn_out.size()=(1500,512,64)
+        weights = torch.bmm(rnn_out.permute(0, 2, 1), merged_state) #(seq,batch,1)
         weights = torch.nn.functional.softmax(weights.squeeze(2), dim=1).unsqueeze(2)
+
+        weights=weights.permute(1,0,2) #(batch,seq,1)
         # (batch, hidden, seq) * (batch, seq, 1) = (batch, hidden, 1)
-        return torch.bmm(rnn_out, weights).squeeze(2)
+        return torch.bmm(rnn_out.permute(2,1,0), weights).squeeze(2)
 
     def forward(self, text):
         embed = self.embedding(text)  # seq * batch * emb

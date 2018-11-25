@@ -15,3 +15,4 @@ from .AttLSTM import AttLSTM
 from .GRU import GRU
 from .Inception import InCNN
 from .bigru_att import bigru_attention
+from .bilstm_conv import bilstm_conv

@@ -21,6 +21,7 @@ class FastText(BasicModule):
 
         self.embedding = nn.Embedding(config.vocab_size, config.embedding_dim)
         if vectors is not None:
+            vectors=torch.Tensor(vectors)
             self.embedding.weight.data.copy_(vectors)
 
         self.pre = nn.Sequential(
