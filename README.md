@@ -1,46 +1,32 @@
-# 2018“达观杯”文本智能处理挑战赛
-## Top 10 “万里阳光号”解决方案
-更详细的比赛经验分享见我的知乎专栏文章https://zhuanlan.zhihu.com/p/45391378  
-
-比赛详情见 [达观杯文本智能处理挑战赛](http://www.dcjingsai.com/common/cmpt/%E2%80%9C%E8%BE%BE%E8%A7%82%E6%9D%AF%E2%80%9D%E6%96%87%E6%9C%AC%E6%99%BA%E8%83%BD%E5%A4%84%E7%90%86%E6%8C%91%E6%88%98%E8%B5%9B_%E7%AB%9E%E8%B5%9B%E4%BF%A1%E6%81%AF.html)  
-最终排名见 [排行榜](
-http://www.dcjingsai.com/common/cmpt/%E2%80%9C%E8%BE%BE%E8%A7%82%E6%9D%AF%E2%80%9D%E6%96%87%E6%9C%AC%E6%99%BA%E8%83%BD%E5%A4%84%E7%90%86%E6%8C%91%E6%88%98%E8%B5%9B_%E6%8E%92%E8%A1%8C%E6%A6%9C.html)
+modify by tjl
 ### 环境配置
 代码基于Pytorch，版本为0.4.1，Python版本为3.6。需安装：
 - pytorch
-- torchtext
-- word2vec
 - pandas
 - sklearn
 - numpy
-- fire
 ### 文件说明
 ```
-emb_build/: word2vec训练词／字向量
+emb_build/: word2vec训练词／字向量 #此处未使用
 models/: 深度学习模型
 result/: 生成测试集提交csv
-val_result/: 模型融合
+val_result/: 模型融合 #该文件未修改
 script/: 脚本文件
 config.py: 模型配置
-fine_tune.py: 模型fine tune
-gen_result.py: 生成模型在测试集上的预测概率结果
-test_ensemble.py: 生成模型在验证集上的预测概率结果
+fine_tune.py: 模型fine tune  #该文件未修改
+gen_result.py: 生成模型在测试集上的预测概率结果 #该文件未修改
+test_ensemble.py: 生成模型在验证集上的预测概率结果#该文件未修改
 data.py: 数据预处理
 main.py: 模型训练
 ```
 
-### 词／字向量训练
-词／字向量训练使用word2vec包，见[word2vec](https://github.com/danielfrg/word2vec)。分别使用训练集和测试集中所有词文本和字文本训练词向量和字向量，向量维度设置为300维。  
-代码见emb_build文件夹下read_csv.py和tran_emb.py，注意修改代码中训练集和测试集的文件路径，依次运行即可得到词／字向量文件word_300.txt和article_300.txt。
-```
-python read_csv.py
-python tran_emb.py
-```
+
 ### 文本预处理
 将比赛提供的训练数据按9:1的比例，划分为训练集和验证集。
 ```
-# util/
-python split_val.py
+导入预训练词向量，train_data_num,test_data_num,dictionary
+最后输出train_loader,test_loader
+
 ```
 word文本平均长度为717，按照覆盖95%样本的标准，取截断长度为2000；article文本平均长度为1177，按同样的标准取截断长度为3200。  
 从csv文件中提取文本数据，使用torchtext进行文本预处理，并进一步构造batch，这部分代码见data.py的类GrandDataset和方法load_data()。
